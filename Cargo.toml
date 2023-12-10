@@ -1,27 +1,34 @@
 [package]
-name = "template-rs"
-version = "0.1.6"
+name = "transformable"
+version = "0.1.1"
 edition = "2021"
-repository = "https://github.com/al8n/template-rs"
-homepage = "https://github.com/al8n/template-rs"
-documentation = "https://docs.rs/template-rs"
-description = "A template for creating Rust open-source repo on GitHub"
+repository = "https://github.com/al8n/transformable"
+homepage = "https://github.com/al8n/transformable"
+documentation = "https://docs.rs/transformable"
+description = "Transform its representation between structured and byte form."
 license = "MIT/Apache-2.0"
-rust-version = "1.73"
-
-[[bench]]
-path = "benches/foo.rs"
-name = "foo"
-harness = false
+rust-version = "1.75"
+keywords = ["wire", "bytes", "binary"]
+categories = ["development-tools", "no-std"]
 
 [features]
-default = []
+default = ["std"]
+alloc = []
+std = ["alloc"]
+async = ["futures-util", "std"]
 
 [dependencies]
+futures-util = { version = "0.3", optional = true, features = ["io"] }
+paste = "1"
+thiserror = "1"
+
+bytes = { version = "1", optional = true }
+smol_str = { version = "0.2", optional = true }
+smallvec = { version = "1", default-features = false, optional = true, features = ["const_generics", "const_new", "union"] }
 
 [dev-dependencies]
-criterion = "0.5"
-tempfile = "3"
+tokio = { version = "1", features = ["full"] }
+rand = { version = "0.8" }
 
 [profile.bench]
 opt-level = 3
