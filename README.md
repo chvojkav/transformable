@@ -38,4 +38,3 @@ Copyright (c) 2023 Al Liu.
 [doc-url]: https://docs.rs/transformable
 [crates-url]: https://crates.io/crates/transformable
 [codecov-url]: https://app.codecov.io/gh/al8n/transformable/
-[zh-cn-url]: https://github.com/al8n/transformable/tree/main/README-zh_CN.md

@@ -14,4 +14,5 @@ cargo hack test --lib --each-feature
 
 # Run thread sanitizer with cargo-hack
 RUSTFLAGS="-Z sanitizer=thread" \
-cargo hack -Zbuild-std test --lib --each-feature
+cargo hack -Zbuild-std test --lib --each-feature --targe x86_64-unknown-linux-gnu
+
