@@ -38,7 +38,9 @@ pub trait Transformable {
   type Error: core::fmt::Display;
 
   /// Encodes the value into the given buffer for transmission.
-  fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error>;
+  ///
+  /// Returns the number of bytes written to the buffer.
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error>;
 
   /// Encodes the value into a vec for transmission.
   #[cfg(feature = "alloc")]
@@ -51,7 +53,7 @@ pub trait Transformable {
   /// Encodes the value into the given writer for transmission.
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()>;
+  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize>;
 
   /// Encodes the value into the given async writer for transmission.
   #[cfg(feature = "async")]
@@ -59,7 +61,7 @@ pub trait Transformable {
   fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
-  ) -> impl std::future::Future<Output = std::io::Result<()>> + Send
+  ) -> impl std::future::Future<Output = std::io::Result<usize>> + Send
   where
     Self::Error: Send + Sync + 'static;
 

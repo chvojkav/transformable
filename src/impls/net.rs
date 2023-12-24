@@ -52,7 +52,7 @@ macro_rules! impl_socket_addr {
     impl Transformable for $ty {
       type Error = AddrTransformError;
 
-      fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+      fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
         let encoded_len = self.encoded_len();
         if dst.len() < encoded_len {
           return Err(Self::Error::EncodeBufferTooSmall);
@@ -60,16 +60,16 @@ macro_rules! impl_socket_addr {
         dst[..$addr_size].copy_from_slice(&self.ip().octets());
         dst[$addr_size..$addr_size + PORT_SIZE].copy_from_slice(&self.port().to_be_bytes());
 
-        Ok(())
+        Ok(encoded_len)
       }
 
       #[cfg(feature = "std")]
       #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-      fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+      fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
         let mut buf = [0u8; $addr_size + PORT_SIZE];
         buf[..$addr_size].copy_from_slice(&self.ip().octets());
         buf[$addr_size..$addr_size + PORT_SIZE].copy_from_slice(&self.port().to_be_bytes());
-        writer.write_all(&buf)
+        writer.write_all(&buf).map(|_| $addr_size + PORT_SIZE)
       }
 
       #[cfg(feature = "async")]
@@ -77,13 +77,13 @@ macro_rules! impl_socket_addr {
       async fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
         &self,
         writer: &mut W,
-      ) -> std::io::Result<()> {
+      ) -> std::io::Result<usize> {
         use futures_util::AsyncWriteExt;
 
         let mut buf = [0u8; $addr_size + PORT_SIZE];
         buf[..$addr_size].copy_from_slice(&self.ip().octets());
         buf[$addr_size..$addr_size + PORT_SIZE].copy_from_slice(&self.port().to_be_bytes());
-        writer.write_all(&buf).await
+        writer.write_all(&buf).await.map(|_| $addr_size + PORT_SIZE)
       }
 
       fn encoded_len(&self) -> usize {
@@ -176,7 +176,7 @@ macro_rules! impl_addr {
     impl Transformable for $ty {
       type Error = AddrTransformError;
 
-      fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+      fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
         self
           .octets()
           .encode(dst)
@@ -185,8 +185,8 @@ macro_rules! impl_addr {
 
       #[cfg(feature = "std")]
       #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-      fn encode_to_writer<W: std::io::Write>(&self, dst: &mut W) -> std::io::Result<()> {
-        dst.write_all(&self.octets())
+      fn encode_to_writer<W: std::io::Write>(&self, dst: &mut W) -> std::io::Result<usize> {
+        dst.write_all(&self.octets()).map(|_| $addr_size)
       }
 
       #[cfg(feature = "async")]
@@ -194,10 +194,10 @@ macro_rules! impl_addr {
       async fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
         &self,
         dst: &mut W,
-      ) -> std::io::Result<()> {
+      ) -> std::io::Result<usize> {
         use futures_util::io::AsyncWriteExt;
 
-        dst.write_all(&self.octets()).await
+        dst.write_all(&self.octets()).await.map(|_| $addr_size)
       }
 
       fn encoded_len(&self) -> usize {

@@ -3,19 +3,19 @@ use super::*;
 impl<const N: usize> Transformable for [u8; N] {
   type Error = BytesTransformError;
 
-  fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
     if dst.len() < N {
       return Err(BytesTransformError::EncodeBufferTooSmall);
     }
 
     dst[..N].copy_from_slice(self);
-    Ok(())
+    Ok(N)
   }
 
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn encode_to_writer<W: std::io::Write>(&self, dst: &mut W) -> std::io::Result<()> {
-    dst.write_all(self)
+  fn encode_to_writer<W: std::io::Write>(&self, dst: &mut W) -> std::io::Result<usize> {
+    dst.write_all(self).map(|_| N)
   }
 
   #[cfg(feature = "async")]
@@ -23,10 +23,10 @@ impl<const N: usize> Transformable for [u8; N] {
   async fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
     &self,
     dst: &mut W,
-  ) -> std::io::Result<()> {
+  ) -> std::io::Result<usize> {
     use futures_util::io::AsyncWriteExt;
 
-    dst.write_all(self).await
+    dst.write_all(self).await.map(|_| N)
   }
 
   fn encoded_len(&self) -> usize {

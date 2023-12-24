@@ -32,7 +32,7 @@ impl std::error::Error for SystemTimeTransformError {}
 impl Transformable for SystemTime {
   type Error = SystemTimeTransformError;
 
-  fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
     if dst.len() < self.encoded_len() {
       return Err(Self::Error::EncodeBufferTooSmall);
     }
@@ -43,17 +43,17 @@ impl Transformable for SystemTime {
         .map_err(Self::Error::InvalidSystemTime)?,
     );
     dst[..ENCODED_LEN].copy_from_slice(&buf);
-    Ok(())
+    Ok(ENCODED_LEN)
   }
 
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
     let mut buf = [0u8; ENCODED_LEN];
     self
       .encode(&mut buf)
       .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    writer.write_all(&buf)
+    writer.write_all(&buf).map(|_| ENCODED_LEN)
   }
 
   #[cfg(feature = "async")]
@@ -61,7 +61,7 @@ impl Transformable for SystemTime {
   async fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
-  ) -> std::io::Result<()>
+  ) -> std::io::Result<usize>
   where
     Self::Error: Send + Sync + 'static,
   {
@@ -71,7 +71,7 @@ impl Transformable for SystemTime {
     self
       .encode(&mut buf)
       .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    writer.write_all(&buf).await
+    writer.write_all(&buf).await.map(|_| ENCODED_LEN)
   }
 
   fn encoded_len(&self) -> usize {

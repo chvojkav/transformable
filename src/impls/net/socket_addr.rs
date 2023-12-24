@@ -35,7 +35,7 @@ const PORT_SIZE: usize = core::mem::size_of::<u16>();
 impl Transformable for SocketAddr {
   type Error = SocketAddrTransformError;
 
-  fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
     let encoded_len = self.encoded_len();
     if dst.len() < encoded_len {
       return Err(Self::Error::EncodeBufferTooSmall);
@@ -55,26 +55,26 @@ impl Transformable for SocketAddr {
       }
     }
 
-    Ok(())
+    Ok(encoded_len)
   }
 
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
     match self {
       SocketAddr::V4(addr) => {
         let mut buf = [0u8; 7];
         buf[0] = 4;
         buf[TAG_SIZE..5].copy_from_slice(&addr.ip().octets());
         buf[5..MIN_ENCODED_LEN].copy_from_slice(&addr.port().to_be_bytes());
-        writer.write_all(&buf)
+        writer.write_all(&buf).map(|_| 7)
       }
       SocketAddr::V6(addr) => {
         let mut buf = [0u8; 19];
         buf[0] = 6;
         buf[1..17].copy_from_slice(&addr.ip().octets());
         buf[17..19].copy_from_slice(&addr.port().to_be_bytes());
-        writer.write_all(&buf)
+        writer.write_all(&buf).map(|_| 19)
       }
     }
   }
@@ -84,7 +84,7 @@ impl Transformable for SocketAddr {
   async fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
-  ) -> std::io::Result<()> {
+  ) -> std::io::Result<usize> {
     use futures_util::AsyncWriteExt;
 
     match self {
@@ -93,14 +93,14 @@ impl Transformable for SocketAddr {
         buf[0] = 4;
         buf[1..5].copy_from_slice(&addr.ip().octets());
         buf[5..7].copy_from_slice(&addr.port().to_be_bytes());
-        writer.write_all(&buf).await
+        writer.write_all(&buf).await.map(|_| 7)
       }
       SocketAddr::V6(addr) => {
         let mut buf = [0u8; 19];
         buf[0] = 6;
         buf[1..17].copy_from_slice(&addr.ip().octets());
         buf[17..19].copy_from_slice(&addr.port().to_be_bytes());
-        writer.write_all(&buf).await
+        writer.write_all(&buf).await.map(|_| 19)
       }
     }
   }

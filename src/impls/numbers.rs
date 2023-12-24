@@ -27,7 +27,7 @@ macro_rules! impl_number_based_id {
       impl Transformable for $ty {
         type Error = NumberIdTransformError;
 
-        fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+        fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
           const SIZE: usize = core::mem::size_of::<$ty>();
 
           let encoded_len = self.encoded_len();
@@ -35,15 +35,15 @@ macro_rules! impl_number_based_id {
             return Err(Self::Error::EncodeBufferTooSmall);
           }
 
-          dst[..SIZE].copy_from_slice(&self.to_be_bytes());
+          dst[..SIZE].copy_from_slice(self.to_network_endian().as_ref());
 
-          Ok(())
+          Ok(SIZE)
         }
 
         #[cfg(feature = "std")]
         #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-        fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
-          writer.write_all(&self.to_be_bytes())
+        fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+          writer.write_all(self.to_network_endian().as_ref()).map(|_| core::mem::size_of::<$ty>())
         }
 
         #[cfg(feature = "async")]
@@ -51,10 +51,10 @@ macro_rules! impl_number_based_id {
         async fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
           &self,
           writer: &mut W,
-        ) -> std::io::Result<()> {
+        ) -> std::io::Result<usize> {
           use futures_util::AsyncWriteExt;
 
-          writer.write_all(&self.to_be_bytes()).await
+          writer.write_all(self.to_network_endian().as_ref()).await.map(|_| core::mem::size_of::<$ty>())
         }
 
         fn encoded_len(&self) -> usize {
@@ -68,7 +68,7 @@ macro_rules! impl_number_based_id {
             return Err(Self::Error::Corrupted);
           }
 
-          let id = <$ty>::from_be_bytes((&src[..SIZE]).try_into().unwrap());
+          let id = <$ty>::from_network_endian(&src[..SIZE]);
           Ok((SIZE, id))
         }
 
@@ -79,7 +79,7 @@ macro_rules! impl_number_based_id {
 
           let mut buf = [0u8; SIZE];
           reader.read_exact(&mut buf)?;
-          let id = <$ty>::from_be_bytes(buf);
+          let id = <$ty>::from_network_endian(&buf);
           Ok((SIZE, id))
         }
 
@@ -97,7 +97,7 @@ macro_rules! impl_number_based_id {
 
           let mut buf = [0u8; SIZE];
           reader.read_exact(&mut buf).await?;
-          let id = <$ty>::from_be_bytes(buf);
+          let id = <$ty>::from_network_endian(&buf);
           Ok((SIZE, id))
         }
       }

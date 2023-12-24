@@ -31,21 +31,22 @@ impl std::error::Error for DurationTransformError {}
 impl Transformable for Duration {
   type Error = DurationTransformError;
 
-  fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
     if dst.len() < self.encoded_len() {
       return Err(Self::Error::EncodeBufferTooSmall);
     }
 
     let buf = encode_duration_unchecked(*self);
     dst[..ENCODED_LEN].copy_from_slice(&buf);
-    Ok(())
+    Ok(ENCODED_LEN)
   }
 
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
     let buf = encode_duration_unchecked(*self);
-    writer.write_all(&buf)
+    let len = buf.len();
+    writer.write_all(&buf).map(|_| len)
   }
 
   #[cfg(feature = "async")]
@@ -53,14 +54,15 @@ impl Transformable for Duration {
   async fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
-  ) -> std::io::Result<()>
+  ) -> std::io::Result<usize>
   where
     Self::Error: Send + Sync + 'static,
   {
     use futures_util::io::AsyncWriteExt;
 
     let buf = encode_duration_unchecked(*self);
-    writer.write_all(&buf).await
+    let len = buf.len();
+    writer.write_all(&buf).await.map(|_| len)
   }
 
   fn encoded_len(&self) -> usize {

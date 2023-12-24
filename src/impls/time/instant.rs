@@ -35,24 +35,24 @@ impl std::error::Error for InstantTransformError {}
 impl Transformable for Instant {
   type Error = InstantTransformError;
 
-  fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
     if dst.len() < self.encoded_len() {
       return Err(Self::Error::EncodeBufferTooSmall);
     }
 
     let buf = encode_duration_unchecked(encode_instant_to_duration(*self));
     dst[..ENCODED_LEN].copy_from_slice(&buf);
-    Ok(())
+    Ok(ENCODED_LEN)
   }
 
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
     let mut buf = [0u8; ENCODED_LEN];
     self
       .encode(&mut buf)
       .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    writer.write_all(&buf)
+    writer.write_all(&buf).map(|_| ENCODED_LEN)
   }
 
   #[cfg(feature = "async")]
@@ -60,7 +60,7 @@ impl Transformable for Instant {
   async fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
     &self,
     writer: &mut W,
-  ) -> std::io::Result<()>
+  ) -> std::io::Result<usize>
   where
     Self::Error: Send + Sync + 'static,
   {
@@ -70,7 +70,7 @@ impl Transformable for Instant {
     self
       .encode(&mut buf)
       .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    writer.write_all(&buf).await
+    writer.write_all(&buf).await.map(|_| ENCODED_LEN)
   }
 
   fn encoded_len(&self) -> usize {

@@ -3,7 +3,7 @@ use super::*;
 impl<const N: usize> Transformable for ::smallvec::SmallVec<[u8; N]> {
   type Error = BytesTransformError;
 
-  fn encode(&self, dst: &mut [u8]) -> Result<(), Self::Error> {
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
     encode_bytes(self.as_ref(), dst).map_err(|_| Self::Error::EncodeBufferTooSmall)
   }
 
@@ -16,7 +16,7 @@ impl<const N: usize> Transformable for ::smallvec::SmallVec<[u8; N]> {
   /// to wrap your orginal writer to cut down the number of I/O times.
   #[cfg(feature = "std")]
   #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-  fn encode_to_writer<W: std::io::Write>(&self, dst: &mut W) -> std::io::Result<()> {
+  fn encode_to_writer<W: std::io::Write>(&self, dst: &mut W) -> std::io::Result<usize> {
     encode_bytes_to(self.as_ref(), dst)
   }
 
@@ -32,7 +32,7 @@ impl<const N: usize> Transformable for ::smallvec::SmallVec<[u8; N]> {
   async fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
     &self,
     dst: &mut W,
-  ) -> std::io::Result<()> {
+  ) -> std::io::Result<usize> {
     encode_bytes_to_async(self.as_ref(), dst).await
   }
 
