@@ -104,52 +104,50 @@ impl core::fmt::Display for BytesTransformError {
   }
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
-const LEGNTH_SIZE: usize = core::mem::size_of::<u32>();
-
-// inlined max 64 bytes on stack when transforming
-#[cfg(feature = "std")]
-const INLINED: usize = 256;
-
 #[cfg(all(feature = "std", feature = "async"))]
 async fn decode_bytes_from_async<R: futures_util::io::AsyncRead + Unpin>(
   src: &mut R,
 ) -> std::io::Result<(usize, Vec<u8>)> {
   use futures_util::io::AsyncReadExt;
 
-  let mut len_buf = [0u8; LEGNTH_SIZE];
+  let mut len_buf = [0u8; MESSAGE_SIZE_LEN];
   src.read_exact(&mut len_buf).await?;
   let len = u32::from_network_endian(&len_buf) as usize;
   let mut buf = vec![0u8; len];
   src
     .read_exact(&mut buf)
     .await
-    .map(|_| (len + LEGNTH_SIZE, buf))
+    .map(|_| (len + MESSAGE_SIZE_LEN, buf))
 }
 
 #[cfg(feature = "std")]
 fn decode_bytes_from<R: std::io::Read>(src: &mut R) -> std::io::Result<(usize, Vec<u8>)> {
-  let mut len_buf = [0u8; LEGNTH_SIZE];
+  let mut len_buf = [0u8; MESSAGE_SIZE_LEN];
   src.read_exact(&mut len_buf)?;
   let len = u32::from_network_endian(&len_buf) as usize;
   let mut buf = vec![0u8; len];
-  src.read_exact(&mut buf).map(|_| (LEGNTH_SIZE + len, buf))
+  src
+    .read_exact(&mut buf)
+    .map(|_| (MESSAGE_SIZE_LEN + len, buf))
 }
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 fn decode_bytes(src: &[u8]) -> Result<(usize, Vec<u8>), ()> {
   let len = src.len();
-  if len < LEGNTH_SIZE {
+  if len < MESSAGE_SIZE_LEN {
     return Err(());
   }
 
-  let data_len = u32::from_network_endian(&src[..LEGNTH_SIZE]) as usize;
-  if data_len > len - LEGNTH_SIZE {
+  let data_len = u32::from_network_endian(&src[..MESSAGE_SIZE_LEN]) as usize;
+  if data_len > len - MESSAGE_SIZE_LEN {
     return Err(());
   }
 
-  let total_len = LEGNTH_SIZE + data_len;
-  Ok((total_len, src[LEGNTH_SIZE..LEGNTH_SIZE + data_len].to_vec()))
+  let total_len = MESSAGE_SIZE_LEN + data_len;
+  Ok((
+    total_len,
+    src[MESSAGE_SIZE_LEN..MESSAGE_SIZE_LEN + data_len].to_vec(),
+  ))
 }
 
 #[cfg(any(feature = "alloc", feature = "std"))]
@@ -159,26 +157,26 @@ fn encode_bytes(src: &[u8], dst: &mut [u8]) -> Result<usize, ()> {
     return Err(());
   }
   let src_len = src.len();
-  NetworkEndian::write_u32(&mut dst[..LEGNTH_SIZE], src_len as u32);
-  dst[LEGNTH_SIZE..LEGNTH_SIZE + src_len].copy_from_slice(src);
-  Ok(LEGNTH_SIZE + src_len)
+  NetworkEndian::write_u32(&mut dst[..MESSAGE_SIZE_LEN], src_len as u32);
+  dst[MESSAGE_SIZE_LEN..MESSAGE_SIZE_LEN + src_len].copy_from_slice(src);
+  Ok(MESSAGE_SIZE_LEN + src_len)
 }
 
 #[cfg(feature = "std")]
 fn encode_bytes_to<W: std::io::Write>(src: &[u8], dst: &mut W) -> std::io::Result<usize> {
   let len = src.len();
-  if len + LEGNTH_SIZE <= INLINED {
-    let mut buf = [0u8; INLINED];
-    NetworkEndian::write_u32(&mut buf[..LEGNTH_SIZE], len as u32);
-    buf[LEGNTH_SIZE..LEGNTH_SIZE + len].copy_from_slice(src);
+  if len + MESSAGE_SIZE_LEN <= MAX_INLINED_BYTES {
+    let mut buf = [0u8; MAX_INLINED_BYTES];
+    NetworkEndian::write_u32(&mut buf[..MESSAGE_SIZE_LEN], len as u32);
+    buf[MESSAGE_SIZE_LEN..MESSAGE_SIZE_LEN + len].copy_from_slice(src);
     dst
-      .write_all(&buf[..LEGNTH_SIZE + len])
-      .map(|_| LEGNTH_SIZE + len)
+      .write_all(&buf[..MESSAGE_SIZE_LEN + len])
+      .map(|_| MESSAGE_SIZE_LEN + len)
   } else {
-    let mut buf = std::vec![0; LEGNTH_SIZE + len];
-    NetworkEndian::write_u32(&mut buf[..LEGNTH_SIZE], len as u32);
-    buf[LEGNTH_SIZE..].copy_from_slice(src);
-    dst.write_all(&buf).map(|_| LEGNTH_SIZE + len)
+    let mut buf = std::vec![0; MESSAGE_SIZE_LEN + len];
+    NetworkEndian::write_u32(&mut buf[..MESSAGE_SIZE_LEN], len as u32);
+    buf[MESSAGE_SIZE_LEN..].copy_from_slice(src);
+    dst.write_all(&buf).map(|_| MESSAGE_SIZE_LEN + len)
   }
 }
 
@@ -190,23 +188,23 @@ async fn encode_bytes_to_async<W: futures_util::io::AsyncWrite + Unpin>(
   use futures_util::io::AsyncWriteExt;
 
   let len = src.len();
-  if len + LEGNTH_SIZE <= INLINED {
-    let mut buf = [0u8; INLINED];
-    NetworkEndian::write_u32(&mut buf[..LEGNTH_SIZE], len as u32);
-    buf[LEGNTH_SIZE..LEGNTH_SIZE + len].copy_from_slice(src);
+  if len + MESSAGE_SIZE_LEN <= MAX_INLINED_BYTES {
+    let mut buf = [0u8; MAX_INLINED_BYTES];
+    NetworkEndian::write_u32(&mut buf[..MESSAGE_SIZE_LEN], len as u32);
+    buf[MESSAGE_SIZE_LEN..MESSAGE_SIZE_LEN + len].copy_from_slice(src);
     dst
-      .write_all(&buf[..LEGNTH_SIZE + len])
+      .write_all(&buf[..MESSAGE_SIZE_LEN + len])
       .await
-      .map(|_| LEGNTH_SIZE + len)
+      .map(|_| MESSAGE_SIZE_LEN + len)
   } else {
-    let mut buf = std::vec![0; LEGNTH_SIZE + len];
-    NetworkEndian::write_u32(&mut buf[..LEGNTH_SIZE], len as u32);
-    buf[LEGNTH_SIZE..].copy_from_slice(src);
-    dst.write_all(&buf).await.map(|_| LEGNTH_SIZE + len)
+    let mut buf = std::vec![0; MESSAGE_SIZE_LEN + len];
+    NetworkEndian::write_u32(&mut buf[..MESSAGE_SIZE_LEN], len as u32);
+    buf[MESSAGE_SIZE_LEN..].copy_from_slice(src);
+    dst.write_all(&buf).await.map(|_| MESSAGE_SIZE_LEN + len)
   }
 }
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 fn encoded_bytes_len(src: &[u8]) -> usize {
-  LEGNTH_SIZE + src.len()
+  MESSAGE_SIZE_LEN + src.len()
 }
