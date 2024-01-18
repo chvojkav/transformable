@@ -218,4 +218,5 @@ impl<T: Transformable + Eq + core::fmt::Debug + Sized> TestTransformable for T {
 mod impls;
 pub use impls::*;
 
-mod utils;
+/// Utilities for encoding and decoding.
+pub mod utils;
