@@ -2,30 +2,30 @@ use super::*;
 
 /// Error type for transformable numbers.
 #[derive(Debug)]
-pub enum NumberIdTransformError {
+pub enum NumberTransformError {
   /// Returned when the buffer is too small to encode.
   EncodeBufferTooSmall,
-  /// Returned when the id is corrupted.
-  Corrupted,
+  /// Returned when there is not enough bytes to decode.
+  NotEnoughBytes,
 }
 
-impl core::fmt::Display for NumberIdTransformError {
+impl core::fmt::Display for NumberTransformError {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::EncodeBufferTooSmall => write!(f, "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"),
-      Self::Corrupted => write!(f, "corrupted id"),
+      Self::NotEnoughBytes => write!(f, "not enough bytes to decode"),
     }
   }
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for NumberIdTransformError {}
+impl std::error::Error for NumberTransformError {}
 
 macro_rules! impl_number_based_id {
   ($($ty: ty), + $(,)?) => {
     $(
       impl Transformable for $ty {
-        type Error = NumberIdTransformError;
+        type Error = NumberTransformError;
 
         fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
           const SIZE: usize = core::mem::size_of::<$ty>();
@@ -65,7 +65,7 @@ macro_rules! impl_number_based_id {
           const SIZE: usize = core::mem::size_of::<$ty>();
 
           if src.len() < SIZE {
-            return Err(Self::Error::Corrupted);
+            return Err(Self::Error::NotEnoughBytes);
           }
 
           let id = <$ty>::from_network_endian(&src[..SIZE]);

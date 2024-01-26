@@ -25,7 +25,7 @@ pub enum IpAddrTransformError {
   UnknownAddressFamily(u8),
   /// Returned when the address is corrupted.
   #[cfg_attr(feature = "std", error("{0}"))]
-  Corrupted(&'static str),
+  NotEnoughBytes(&'static str),
 }
 
 const MIN_ENCODED_LEN: usize = TAG_SIZE + V4_SIZE;
@@ -115,8 +115,8 @@ impl Transformable for IpAddr {
     match src[0] {
       4 => {
         if src.len() < 7 {
-          return Err(IpAddrTransformError::Corrupted(
-            "corrupted socket v4 address",
+          return Err(IpAddrTransformError::NotEnoughBytes(
+            "not enough bytes to decode socket v4 address",
           ));
         }
 
@@ -125,8 +125,8 @@ impl Transformable for IpAddr {
       }
       6 => {
         if src.len() < 19 {
-          return Err(IpAddrTransformError::Corrupted(
-            "corrupted socket v6 address",
+          return Err(IpAddrTransformError::NotEnoughBytes(
+            "not enough bytes to decode socket v6 address",
           ));
         }
 

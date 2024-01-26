@@ -21,8 +21,8 @@ pub enum AddrTransformError {
   ))]
   EncodeBufferTooSmall,
   /// Returned when the bytes are corrupted.
-  #[cfg_attr(feature = "std", error("corrupted address"))]
-  Corrupted,
+  #[cfg_attr(feature = "std", error("not enough bytes to decode"))]
+  NotEnoughBytes,
 }
 
 #[cfg(not(feature = "std"))]
@@ -33,7 +33,7 @@ impl core::fmt::Display for AddrTransformError {
         f,
         "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"
       ),
-      Self::Corrupted => write!(f, "corrupted address"),
+      Self::NotEnoughBytes => write!(f, "not enough bytes to decode"),
     }
   }
 }
@@ -42,7 +42,7 @@ impl AddrTransformError {
   fn from_bytes_error(err: BytesTransformError) -> Self {
     match err {
       BytesTransformError::EncodeBufferTooSmall => Self::EncodeBufferTooSmall,
-      BytesTransformError::Corrupted => Self::Corrupted,
+      BytesTransformError::NotEnoughBytes => Self::NotEnoughBytes,
     }
   }
 }
@@ -95,7 +95,7 @@ macro_rules! impl_socket_addr {
         Self: Sized,
       {
         if src.len() < $addr_size + PORT_SIZE {
-          return Err(Self::Error::Corrupted);
+          return Err(Self::Error::NotEnoughBytes);
         }
 
         let mut buf = [0u8; $addr_size];

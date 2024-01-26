@@ -33,7 +33,7 @@ macro_rules! impl_bytes {
       where
         Self: Sized,
       {
-        decode_bytes(src).map(|(readed, b)| (readed, b.into())).map_err(|_| Self::Error::Corrupted)
+        decode_bytes(src).map(|(readed, b)| (readed, b.into())).map_err(|_| Self::Error::NotEnoughBytes)
       }
 
       #[cfg(feature = "std")]

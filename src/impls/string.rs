@@ -13,8 +13,8 @@ pub enum StringTransformError {
   ))]
   EncodeBufferTooSmall,
   /// Returned when the decoding meet corruption.
-  #[cfg_attr(feature = "std", error("corrupted"))]
-  Corrupted,
+  #[cfg_attr(feature = "std", error("not enough bytes to decode"))]
+  NotEnoughBytes,
   /// Returned when the decoding meet utf8 error.
   #[cfg_attr(feature = "std", error("{0}"))]
   Utf8Error(#[cfg_attr(feature = "std", from)] core::str::Utf8Error),
@@ -35,7 +35,7 @@ impl core::fmt::Display for StringTransformError {
         f,
         "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"
       ),
-      Self::Corrupted => write!(f, "corrupted"),
+      Self::NotEnoughBytes => write!(f, "not enough bytes to decode"),
       Self::Utf8Error(val) => write!(f, "{val}"),
     }
   }
@@ -78,7 +78,7 @@ macro_rules! impl_string {
         Self: Sized,
       {
         decode_bytes(src)
-          .map_err(|_| Self::Error::Corrupted)
+          .map_err(|_| Self::Error::NotEnoughBytes)
           .and_then(|(readed, bytes)| {
             core::str::from_utf8(bytes.as_ref())
               .map(|s| (readed, Self::from(s)))

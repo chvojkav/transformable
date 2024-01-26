@@ -5,6 +5,8 @@ mod bytes;
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 mod string;
+#[cfg(any(feature = "alloc", feature = "std"))]
+pub use string::*;
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 mod vec;
@@ -87,8 +89,8 @@ pub enum BytesTransformError {
   ))]
   EncodeBufferTooSmall,
   /// Returned when the bytes are corrupted.
-  #[cfg_attr(feature = "std", error("corrupted"))]
-  Corrupted,
+  #[cfg_attr(feature = "std", error("not enough bytes to decode"))]
+  NotEnoughBytes,
 }
 
 #[cfg(not(feature = "std"))]
@@ -99,7 +101,7 @@ impl core::fmt::Display for BytesTransformError {
         f,
         "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"
       ),
-      Self::Corrupted => write!(f, "corrupted"),
+      Self::NotEnoughBytes => write!(f, "not enough bytes to decode"),
     }
   }
 }

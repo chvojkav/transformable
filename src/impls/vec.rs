@@ -44,7 +44,7 @@ impl Transformable for Vec<u8> {
   where
     Self: Sized,
   {
-    decode_bytes(src).map_err(|_| Self::Error::Corrupted)
+    decode_bytes(src).map_err(|_| Self::Error::NotEnoughBytes)
   }
 
   /// Decodes the value from the given reader.

@@ -39,7 +39,7 @@ impl<const N: usize> Transformable for [u8; N] {
   {
     let len = src.len();
     if len < N {
-      return Err(BytesTransformError::Corrupted);
+      return Err(BytesTransformError::NotEnoughBytes);
     }
 
     let mut buf = [0; N];

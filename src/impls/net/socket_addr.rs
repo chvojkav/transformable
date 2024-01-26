@@ -21,8 +21,8 @@ pub enum SocketAddrTransformError {
   )]
   UnknownAddressFamily(u8),
   /// Returned when the address is corrupted.
-  #[cfg_attr(feature = "std", error("{0}"))]
-  Corrupted(&'static str),
+  #[cfg_attr(feature = "std", error("not enough bytes to decode"))]
+  NotEnoughBytes,
 }
 
 const MIN_ENCODED_LEN: usize = TAG_SIZE + V4_SIZE + PORT_SIZE;
@@ -119,9 +119,7 @@ impl Transformable for SocketAddr {
     match src[0] {
       4 => {
         if src.len() < 7 {
-          return Err(SocketAddrTransformError::Corrupted(
-            "corrupted socket v4 address",
-          ));
+          return Err(SocketAddrTransformError::NotEnoughBytes);
         }
 
         let ip = std::net::Ipv4Addr::new(src[1], src[2], src[3], src[4]);
@@ -130,9 +128,7 @@ impl Transformable for SocketAddr {
       }
       6 => {
         if src.len() < 19 {
-          return Err(SocketAddrTransformError::Corrupted(
-            "corrupted socket v6 address",
-          ));
+          return Err(SocketAddrTransformError::NotEnoughBytes);
         }
 
         let mut buf = [0u8; 16];

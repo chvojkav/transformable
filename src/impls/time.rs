@@ -9,8 +9,8 @@ const ENCODED_LEN: usize = mem::size_of::<u64>() + mem::size_of::<u32>();
 pub enum DurationTransformError {
   /// The buffer is too small to encode the value.
   EncodeBufferTooSmall,
-  /// Corrupted binary data.
-  Corrupted,
+  /// NotEnoughBytes binary data.
+  NotEnoughBytes,
 }
 
 impl core::fmt::Display for DurationTransformError {
@@ -20,7 +20,7 @@ impl core::fmt::Display for DurationTransformError {
         f,
         "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"
       ),
-      Self::Corrupted => write!(f, "corrupted binary data"),
+      Self::NotEnoughBytes => write!(f, "not enough bytes to decode"),
     }
   }
 }
@@ -74,7 +74,7 @@ impl Transformable for Duration {
     Self: Sized,
   {
     if src.len() < ENCODED_LEN {
-      return Err(Self::Error::Corrupted);
+      return Err(Self::Error::NotEnoughBytes);
     }
 
     Ok(decode_duration_unchecked(src))

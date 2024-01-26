@@ -7,8 +7,8 @@ use super::*;
 pub enum SystemTimeTransformError {
   /// The buffer is too small to encode the value.
   EncodeBufferTooSmall,
-  /// Corrupted binary data.
-  Corrupted,
+  /// NotEnoughBytes binary data.
+  NotEnoughBytes,
   /// Invalid system time.
   InvalidSystemTime(SystemTimeError),
 }
@@ -20,7 +20,7 @@ impl core::fmt::Display for SystemTimeTransformError {
       f,
       "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"
     ),
-    Self::Corrupted => write!(f, "corrupted binary data"),
+    Self::NotEnoughBytes => write!(f, "not enough bytes to decode system time"),
     Self::InvalidSystemTime(e) => write!(f, "{e}"),
   }
   }
@@ -83,7 +83,7 @@ impl Transformable for SystemTime {
     Self: Sized,
   {
     if src.len() < ENCODED_LEN {
-      return Err(Self::Error::Corrupted);
+      return Err(Self::Error::NotEnoughBytes);
     }
 
     let (readed, dur) = decode_duration_unchecked(src);

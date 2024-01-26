@@ -10,8 +10,8 @@ use super::*;
 pub enum InstantTransformError {
   /// The buffer is too small to encode the value.
   EncodeBufferTooSmall,
-  /// Corrupted binary data.
-  Corrupted,
+  /// NotEnoughBytes binary data.
+  NotEnoughBytes,
   /// Invalid system time.
   InvalidSystemTime(SystemTimeError),
 }
@@ -23,7 +23,7 @@ impl core::fmt::Display for InstantTransformError {
       f,
       "buffer is too small, use `Transformable::encoded_len` to pre-allocate a buffer with enough space"
     ),
-    Self::Corrupted => write!(f, "corrupted binary data"),
+    Self::NotEnoughBytes => write!(f, "not enough bytes to decode instant"),
     Self::InvalidSystemTime(e) => write!(f, "{e}"),
   }
   }
@@ -82,7 +82,7 @@ impl Transformable for Instant {
     Self: Sized,
   {
     if src.len() < ENCODED_LEN {
-      return Err(Self::Error::Corrupted);
+      return Err(Self::Error::NotEnoughBytes);
     }
 
     let (readed, instant) = decode_duration_unchecked(src);

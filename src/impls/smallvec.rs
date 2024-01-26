@@ -46,7 +46,7 @@ impl<const N: usize> Transformable for ::smallvec::SmallVec<[u8; N]> {
   {
     decode_bytes(src)
       .map(|(readed, b)| (readed, b.into()))
-      .map_err(|_| Self::Error::Corrupted)
+      .map_err(|_| Self::Error::NotEnoughBytes)
   }
 
   /// Decodes the value from the given reader.
