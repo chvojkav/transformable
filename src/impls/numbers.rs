@@ -30,7 +30,7 @@ macro_rules! impl_number_based_id {
         fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
           const SIZE: usize = core::mem::size_of::<$ty>();
 
-          let encoded_len = self.encoded_len();
+          let encoded_len = Transformable::encoded_len(self);
           if dst.len() < encoded_len {
             return Err(Self::Error::EncodeBufferTooSmall);
           }

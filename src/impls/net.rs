@@ -53,7 +53,7 @@ macro_rules! impl_socket_addr {
       type Error = AddrTransformError;
 
       fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
-        let encoded_len = self.encoded_len();
+        let encoded_len = Transformable::encoded_len(self);
         if dst.len() < encoded_len {
           return Err(Self::Error::EncodeBufferTooSmall);
         }
@@ -177,10 +177,7 @@ macro_rules! impl_addr {
       type Error = AddrTransformError;
 
       fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
-        self
-          .octets()
-          .encode(dst)
-          .map_err(Self::Error::from_bytes_error)
+        Transformable::encode(&self.octets(), dst).map_err(Self::Error::from_bytes_error)
       }
 
       #[cfg(feature = "std")]
@@ -208,8 +205,8 @@ macro_rules! impl_addr {
       where
         Self: Sized,
       {
-        let (len, octets) =
-          <[u8; $addr_size]>::decode(src).map_err(Self::Error::from_bytes_error)?;
+        let (len, octets) = <[u8; $addr_size] as Transformable>::decode(src)
+          .map_err(Self::Error::from_bytes_error)?;
         Ok((len, Self::from(octets)))
       }
 
@@ -219,7 +216,8 @@ macro_rules! impl_addr {
       where
         Self: Sized,
       {
-        <[u8; $addr_size]>::decode_from_reader(src).map(|(len, octets)| (len, Self::from(octets)))
+        <[u8; $addr_size] as Transformable>::decode_from_reader(src)
+          .map(|(len, octets)| (len, Self::from(octets)))
       }
 
       #[cfg(feature = "async")]
@@ -230,7 +228,7 @@ macro_rules! impl_addr {
       where
         Self: Sized,
       {
-        <[u8; $addr_size]>::decode_from_async_reader(src)
+        <[u8; $addr_size] as Transformable>::decode_from_async_reader(src)
           .await
           .map(|(len, octets)| (len, Self::from(octets)))
       }

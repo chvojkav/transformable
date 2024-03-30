@@ -190,6 +190,218 @@ pub trait Transformable: Send + Sync + 'static {
   }
 }
 
+/// The type can transform its representation between structured and byte form.
+#[cfg(not(feature = "std"))]
+#[cfg_attr(docsrs, doc(cfg(not(feature = "std"))))]
+pub trait Encodable {
+  /// The error type returned when encoding or decoding fails.
+  type Error: core::fmt::Display;
+
+  /// Encodes the value into the given buffer for transmission.
+  ///
+  /// Returns the number of bytes written to the buffer.
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error>;
+
+  /// Encodes the value into a vec for transmission.
+  #[cfg(feature = "alloc")]
+  fn encode_to_vec(&self) -> Result<Vec<u8>, Self::Error> {
+    let mut buf = ::alloc::vec![0u8; self.encoded_len()];
+    self.encode(&mut buf)?;
+    Ok(buf)
+  }
+
+  /// Returns the encoded length of the value.
+  /// This is used to pre-allocate a buffer for encoding.
+  fn encoded_len(&self) -> usize;
+}
+
+/// The type can transform its representation to byte form.
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+pub trait Encodable: Send + Sync {
+  /// The error type returned when encoding or decoding fails.
+  type Error: std::error::Error + Send + Sync + 'static;
+
+  /// Encodes the value into the given buffer for transmission.
+  ///
+  /// Returns the number of bytes written to the buffer.
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error>;
+
+  /// Encodes the value into a vec for transmission.
+  fn encode_to_vec(&self) -> Result<Vec<u8>, Self::Error> {
+    let mut buf = ::std::vec![0u8; self.encoded_len()];
+    self.encode(&mut buf)?;
+    Ok(buf)
+  }
+
+  /// Encodes the value into the given writer for transmission.
+  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+    let encoded_len = self.encoded_len();
+    if encoded_len <= MAX_INLINED_BYTES {
+      let mut buf = [0u8; MAX_INLINED_BYTES];
+      let len = self.encode(&mut buf).map_err(utils::invalid_data)?;
+      writer.write_all(&buf[..encoded_len]).map(|_| len)
+    } else {
+      let mut buf = ::std::vec![0u8; encoded_len];
+      let len = self.encode(&mut buf).map_err(utils::invalid_data)?;
+      writer.write_all(&buf).map(|_| len)
+    }
+  }
+
+  /// Encodes the value into the given async writer for transmission.
+  #[cfg(feature = "async")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+  fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
+    &self,
+    writer: &mut W,
+  ) -> impl std::future::Future<Output = std::io::Result<usize>> + Send {
+    use futures_util::io::AsyncWriteExt;
+    async move {
+      let encoded_len = self.encoded_len();
+      if encoded_len <= MAX_INLINED_BYTES {
+        let mut buf = [0u8; MAX_INLINED_BYTES];
+        let len = self.encode(&mut buf).map_err(utils::invalid_data)?;
+        writer.write_all(&buf[..encoded_len]).await.map(|_| len)
+      } else {
+        let mut buf = ::std::vec![0u8; encoded_len];
+        let len = self.encode(&mut buf).map_err(utils::invalid_data)?;
+        writer.write_all(&buf).await.map(|_| len)
+      }
+    }
+  }
+
+  /// Returns the encoded length of the value.
+  /// This is used to pre-allocate a buffer for encoding.
+  fn encoded_len(&self) -> usize;
+}
+
+#[cfg(feature = "std")]
+impl<T: Transformable> Encodable for T {
+  type Error = T::Error;
+
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
+    Transformable::encode(self, dst)
+  }
+
+  fn encoded_len(&self) -> usize {
+    Transformable::encoded_len(self)
+  }
+
+  fn encode_to_vec(&self) -> Result<Vec<u8>, Self::Error> {
+    Transformable::encode_to_vec(self)
+  }
+
+  fn encode_to_writer<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+    Transformable::encode_to_writer(self, writer)
+  }
+
+  #[cfg(feature = "async")]
+  fn encode_to_async_writer<W: futures_util::io::AsyncWrite + Send + Unpin>(
+    &self,
+    writer: &mut W,
+  ) -> impl std::future::Future<Output = std::io::Result<usize>> + Send
+  where
+    Self: Sync,
+  {
+    Transformable::encode_to_async_writer(self, writer)
+  }
+}
+
+#[cfg(not(feature = "std"))]
+impl<T: Transformable> Encodable for T {
+  type Error = T::Error;
+
+  fn encode(&self, dst: &mut [u8]) -> Result<usize, Self::Error> {
+    Transformable::encode(self, dst)
+  }
+
+  fn encoded_len(&self) -> usize {
+    Transformable::encoded_len(self)
+  }
+
+  #[cfg(feature = "alloc")]
+  fn encode_to_vec(&self) -> Result<Vec<u8>, Self::Error> {
+    Transformable::encode_to_vec(self)
+  }
+}
+
+/// The type can transform its representation from byte form to struct.
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+pub trait Decodable: Send + 'static {
+  /// The error type returned when encoding or decoding fails.
+  type Error: std::error::Error + Send + Sync + 'static;
+
+  /// Decodes the value from the given buffer received over the wire.
+  ///
+  /// Returns the number of bytes read from the buffer and the struct.
+  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
+  where
+    Self: Sized;
+
+  /// Decodes the value from the given reader received over the wire.
+  ///
+  /// Returns the number of bytes read from the reader and the struct.
+  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<(usize, Self)>
+  where
+    Self: Sized;
+
+  /// Decodes the value from the given async reader received over the wire.
+  ///
+  /// Returns the number of bytes read from the reader and the struct.
+  #[cfg(feature = "async")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+  fn decode_from_async_reader<R: futures_util::io::AsyncRead + Send + Unpin>(
+    reader: &mut R,
+  ) -> impl std::future::Future<Output = std::io::Result<(usize, Self)>> + Send
+  where
+    Self: Sized;
+}
+
+/// The type can transform its representation from byte form to struct.
+#[cfg(not(feature = "std"))]
+#[cfg_attr(docsrs, doc(cfg(not(feature = "std"))))]
+pub trait Decodable {
+  /// The error type returned when encoding or decoding fails.
+  type Error: core::fmt::Display;
+
+  /// Decodes the value from the given buffer received over the wire.
+  ///
+  /// Returns the number of bytes read from the buffer and the struct.
+  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error>
+  where
+    Self: Sized;
+}
+
+#[cfg(feature = "std")]
+impl<T: Transformable> Decodable for T {
+  type Error = T::Error;
+
+  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error> {
+    Transformable::decode(src)
+  }
+
+  fn decode_from_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<(usize, Self)> {
+    Transformable::decode_from_reader(reader)
+  }
+
+  #[cfg(feature = "async")]
+  fn decode_from_async_reader<R: futures_util::io::AsyncRead + Send + Unpin>(
+    reader: &mut R,
+  ) -> impl std::future::Future<Output = std::io::Result<(usize, Self)>> + Send {
+    <Self as Transformable>::decode_from_async_reader::<R>(reader)
+  }
+}
+
+#[cfg(not(feature = "std"))]
+impl<T: Transformable> Decodable for T {
+  type Error = T::Error;
+
+  fn decode(src: &[u8]) -> Result<(usize, Self), Self::Error> {
+    Transformable::decode(src)
+  }
+}
+
 #[cfg(test)]
 trait TestTransformable: Transformable + Eq + core::fmt::Debug + Sized {
   fn test_transformable(init: impl FnOnce() -> Self)
