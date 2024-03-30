@@ -65,7 +65,7 @@ pub trait Transformable {
 /// The type can transform its representation between structured and byte form.
 #[cfg(feature = "std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-pub trait Transformable: Send + Sync + 'static {
+pub trait Transformable: Send + Sync {
   /// The error type returned when encoding or decoding fails.
   type Error: std::error::Error + Send + Sync + 'static;
 

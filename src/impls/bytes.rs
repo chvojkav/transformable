@@ -1,5 +1,7 @@
 use super::*;
-use ::alloc::{boxed::Box, sync::Arc};
+#[cfg(not(feature = "std"))]
+use ::alloc::boxed::Box;
+use ::alloc::sync::Arc;
 
 macro_rules! impl_bytes {
   ($ty: ty => $test_fn:ident($init: expr)) => {

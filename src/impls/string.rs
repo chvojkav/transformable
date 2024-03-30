@@ -1,5 +1,9 @@
 use super::*;
-use ::alloc::{boxed::Box, string::String, sync::Arc};
+
+#[cfg(not(feature = "std"))]
+use ::alloc::{boxed::Box, string::String};
+
+use ::alloc::sync::Arc;
 
 use core::borrow::Borrow;
 

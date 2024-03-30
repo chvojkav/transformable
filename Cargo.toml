@@ -1,12 +1,12 @@
 [package]
 name = "transformable"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 repository = "https://github.com/al8n/transformable"
 homepage = "https://github.com/al8n/transformable"
 documentation = "https://docs.rs/transformable"
 description = "Transform its representation between structured and byte form."
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 rust-version = "1.75"
 keywords = ["wire", "bytes", "binary"]
 categories = ["development-tools", "no-std"]
